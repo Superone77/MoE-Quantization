@@ -7,5 +7,6 @@ tqdm
 
 deepspeed
 datasets
+evaluate
 tensorboardX
 peft

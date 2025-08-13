@@ -91,6 +91,7 @@ requirements = [
     "typing_extensions>=4.8.0",
     "accelerate",
     "datasets",
+    "evaluate",
     "zstandard",
 ]
 
