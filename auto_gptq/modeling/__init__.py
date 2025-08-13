@@ -23,3 +23,4 @@ from .stablelmepoch import StableLMEpochGPTQForCausalLM
 from .xverse import XverseGPTQForCausalLM
 from .yi import YiGPTQForCausalLM
 from .deepseek import DeepSeekGPTQForCausalLM
+from .olmoe import OlmoeGPTQForCausalLM
