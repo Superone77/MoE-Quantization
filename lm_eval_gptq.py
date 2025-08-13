@@ -21,6 +21,7 @@ LM_EVAL_TASK_KWARGS_DICT = {
     # "rte": {"task": "rte", "num_fewshot": 0, "batch_size": 128, "metric": "acc"},
     "piqa": {"task": "piqa", "num_fewshot": 0, "batch_size": 128, "metric": "acc"},
     "mmlu": {"task": "mmlu", "num_fewshot": 5, "batch_size": 16, "metric": "acc"},
+    "gsm8k": {"task": "gsm8k", "num_fewshot": 5, "batch_size": 1, "metric": "exact_match"},
 }
 
 if __name__ == "__main__":
@@ -49,6 +50,12 @@ if __name__ == "__main__":
         "--proxy",
         action="store_true",
         help="Whether to skip MMLU",
+    )
+    parser.add_argument(
+        "--tasks",
+        type=str,
+        default=None,
+        help="Comma separated list of tasks to evaluate, defaults to all",
     )
     args = parser.parse_args()
 
@@ -80,11 +87,16 @@ if __name__ == "__main__":
         with open(save_file_path, 'r') as file:
             all_metrics = json.load(file)
 
-    if args.proxy:
+    if args.proxy and "mmlu" in LM_EVAL_TASK_KWARGS_DICT:
         LM_EVAL_TASK_KWARGS_DICT.pop("mmlu")
         print("Skip MMLU for proxy benchmark as it is too large.")
 
-    for task_kwargs in LM_EVAL_TASK_KWARGS_DICT.values():
+    selected_tasks = (
+        args.tasks.split(",") if args.tasks else LM_EVAL_TASK_KWARGS_DICT.keys()
+    )
+
+    for name in selected_tasks:
+        task_kwargs = LM_EVAL_TASK_KWARGS_DICT[name]
         print(f"Evaluating task: {task_kwargs['task']}")
         task_name = task_kwargs["task"]
         lm = HFLM(
