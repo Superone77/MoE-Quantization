@@ -47,7 +47,7 @@ from ._utils import (
 )
 from ..nn_modules._fused_base import FusedBaseAttentionModule, FusedBaseMLPModule
 from ..nn_modules.qlinear import GeneralQuantLinear
-from ..quantization import GPTQ
+from ..quantization import GPTQ, Quantizer, NVFP4Quantizer
 from ..utils.data_utils import collate_data
 from ..utils.import_utils import (
     AUTOGPTQ_CUDA_AVAILABLE,
@@ -184,6 +184,7 @@ class BaseQuantizeConfig(PushToHubMixin):
     def to_dict(self):
         return {
             "bits": self.bits,
+            "quant_type": self.quant_type,
             "group_size": self.group_size,
             "damp_percent": self.damp_percent,
             "desc_act": self.desc_act,
@@ -200,6 +201,7 @@ class BaseQuantizeConfig(PushToHubMixin):
 @dataclass
 class BaseQuantizeConfig_mixed_precision(PushToHubMixin):
     bits: dict
+    quant_type: str = field(default="int")
     group_size: int = field(default=-1)
     damp_percent: float = field(default=0.01)
     desc_act: bool = field(default=True)
@@ -304,6 +306,7 @@ class BaseQuantizeConfig_mixed_precision(PushToHubMixin):
     def to_dict(self):
         return {
             "bits": self.bits,
+            "quant_type": self.quant_type,
             "group_size": self.group_size,
             "damp_percent": self.damp_percent,
             "desc_act": self.desc_act,
@@ -539,8 +542,11 @@ class BaseGPTQForCausalLM(nn.Module, PushToHubMixin):
             for names in inside_layer_modules:
                 subset = {n: full[n] for n in names if n in full}
                 gptq = {}
+                quantizer_cls = (
+                    NVFP4Quantizer if self.quantize_config.quant_type == "nvfp4" else Quantizer
+                )
                 for name in subset:
-                    gptq[name] = GPTQ(subset[name])
+                    gptq[name] = GPTQ(subset[name], quantizer=quantizer_cls())
                     gptq[name].quantizer.configure(
                         self.quantize_config.bits,
                         perchannel=True,
@@ -1774,11 +1780,12 @@ class BaseGPTQForCausalLM_mixed_precision(nn.Module, PushToHubMixin):
             for names in inside_layer_modules:
                 subset = {n: full[n] for n in names if n in full}
                 gptq = {}
+                quantizer_cls = (
+                    NVFP4Quantizer if self.quantize_config.quant_type == "nvfp4" else Quantizer
+                )
                 for name in subset:
-                    # print(f'{self.layers_block_name}.{i}.{name}')
-                    # print(self.quantize_config.bits)
                     layer_bits = self.quantize_config.bits[f'{self.layers_block_name}.{i}.{name}']
-                    gptq[name] = GPTQ(subset[name])
+                    gptq[name] = GPTQ(subset[name], quantizer=quantizer_cls())
                     gptq[name].quantizer.configure(
                         layer_bits,
                         perchannel=True,
