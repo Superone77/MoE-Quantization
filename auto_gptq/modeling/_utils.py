@@ -399,6 +399,9 @@ def pack_model(
     for name in qlayers:
         logger.info(f'{name} | starting packing')
         quantizers[name], scale, zero, g_idx = quantizers[name]
+        # propagate quantization type information to the layer
+        qlayers[name].quant_type = getattr(quantizers[name], "quant_type", "")
+
         # so far can only pack layer on CPU
         layer_device = qlayers[name].device
         qlayers[name].to(CPU)

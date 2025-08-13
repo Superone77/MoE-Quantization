@@ -132,22 +132,34 @@ class QuantLinear(nn.Module, TritonModuleMixin):
         qweight = qweight.astype(np.int32)
         self.qweight = torch.from_numpy(qweight)
 
-        zeros -= 1
-        zeros = zeros.numpy().astype(np.uint32)
-        qzeros = np.zeros((zeros.shape[0], zeros.shape[1] // 32 * self.bits), dtype=np.uint32)
-        i = 0
-        col = 0
-        while col < qzeros.shape[1]:
-            if self.bits in [2, 4, 8]:
-                for j in range(i, i + (32 // self.bits)):
-                    qzeros[:, col] |= zeros[:, j] << (self.bits * (j - i))
-                i += 32 // self.bits
-                col += 1
-            else:
-                raise NotImplementedError("Only 2,4,8 bits are supported.")
+        if getattr(self, "quant_type", "") == "nvfp4":
+            self.qzeros = torch.zeros(
+                (
+                    math.ceil(self.infeatures / self.group_size),
+                    self.outfeatures // 32 * self.bits,
+                ),
+                dtype=torch.int32,
+            )
+        else:
+            zeros -= 1
+            zeros = zeros.numpy().astype(np.uint32)
+            qzeros = np.zeros(
+                (zeros.shape[0], zeros.shape[1] // 32 * self.bits),
+                dtype=np.uint32,
+            )
+            i = 0
+            col = 0
+            while col < qzeros.shape[1]:
+                if self.bits in [2, 4, 8]:
+                    for j in range(i, i + (32 // self.bits)):
+                        qzeros[:, col] |= zeros[:, j] << (self.bits * (j - i))
+                    i += 32 // self.bits
+                    col += 1
+                else:
+                    raise NotImplementedError("Only 2,4,8 bits are supported.")
 
-        qzeros = qzeros.astype(np.int32)
-        self.qzeros = torch.from_numpy(qzeros)
+            qzeros = qzeros.astype(np.int32)
+            self.qzeros = torch.from_numpy(qzeros)
 
     def forward(self, x):
         out_shape = x.shape[:-1] + (self.outfeatures,)
